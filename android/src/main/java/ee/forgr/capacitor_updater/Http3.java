@@ -90,7 +90,9 @@ final class Http3 {
 
     @RequiresExtension(extension = Build.VERSION_CODES.S, version = 7)
     private static Opener buildEngine(Context context) {
-        File storage = new File(context.getCacheDir(), "capgo_httpengine");
+        // Not the cache dir, which the OS clears under storage pressure and would drop the saved
+        // Alt-Svc. No-backup also keeps one network's QUIC state off a restored device.
+        File storage = new File(context.getNoBackupFilesDir(), "capgo_httpengine");
         if (!storage.isDirectory() && !storage.mkdirs()) {
             throw new IllegalStateException("cannot create " + storage.getAbsolutePath());
         }
