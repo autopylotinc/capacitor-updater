@@ -705,9 +705,6 @@ public class DownloadService extends Worker {
         try {
             URL u = new URL(url);
             httpConn = (HttpURLConnection) Http3.openConnection(u);
-            // A zip is already compressed. Identity keeps Content-Length, Range offsets and the
-            // bytes written all describing the same representation on either transport.
-            httpConn.setRequestProperty("Accept-Encoding", "identity");
 
             // Zip can stall longer than a JSON API call; keep a floor so
             // responseTimeout cannot shrink large-bundle downloads.
@@ -750,7 +747,9 @@ public class DownloadService extends Worker {
 
             if (responseCode == HttpURLConnection.HTTP_OK || responseCode == HttpURLConnection.HTTP_PARTIAL) {
                 ZipWritePlan writePlan = planZipResumeWrite(responseCode, downloadedBytes, httpConn.getHeaderField("Content-Range"));
-                long responseBodyLength = httpConn.getContentLength();
+                // HttpEngine always negotiates and decodes Content-Encoding, keeping the encoded
+                // Content-Length, so that length doesn't describe the bytes written.
+                long responseBodyLength = httpConn.getHeaderField("Content-Encoding") != null ? -1 : httpConn.getContentLength();
                 long contentLength = shouldAppendHttpBody(writePlan.statusCode, writePlan.writeOffset)
                     ? (responseBodyLength >= 0 ? responseBodyLength + writePlan.writeOffset : -1)
                     : responseBodyLength;
