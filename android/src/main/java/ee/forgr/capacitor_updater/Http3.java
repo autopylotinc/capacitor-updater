@@ -63,8 +63,9 @@ final class Http3 {
         try {
             engineOpener = buildEngine(context.getApplicationContext());
             log(logger, "HttpEngine ready, HTTP/3 enabled for downloads");
-        } catch (RuntimeException e) {
+        } catch (RuntimeException | LinkageError e) {
             // Fall back to the existing transports; that is the point of HTTP/2 fallback.
+            // LinkageError covers a device that reports the extension but can't load the engine.
             log(logger, "HttpEngine failed to start, staying on HTTP/2: " + e.getMessage());
         }
     }

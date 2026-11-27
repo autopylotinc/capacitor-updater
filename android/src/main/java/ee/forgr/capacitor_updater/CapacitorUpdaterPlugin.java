@@ -688,7 +688,6 @@ public class CapacitorUpdaterPlugin extends Plugin {
         boolean osLogging = this.getConfig().getBoolean("osLogging", true);
         Logger.Options loggerOptions = new Logger.Options(osLogging);
         this.logger = new Logger("CapgoUpdater", loggerOptions);
-        Http3.init(this.getContext(), this.logger);
 
         this.prefs = this.getContext().getSharedPreferences(WebView.WEBVIEW_PREFS_NAME, Activity.MODE_PRIVATE);
         this.editor = this.prefs.edit();

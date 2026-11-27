@@ -401,7 +401,7 @@ public class DownloadService extends Worker {
     @NonNull
     @Override
     public Result doWork() {
-        // WorkManager can run this in a fresh process that never loaded the plugin.
+        // Every download runs here, on a worker thread, possibly in a fresh process.
         Http3.init(getApplicationContext(), logger);
         try {
             String url = getInputData().getString(URL);
@@ -705,6 +705,9 @@ public class DownloadService extends Worker {
         try {
             URL u = new URL(url);
             httpConn = (HttpURLConnection) Http3.openConnection(u);
+            // A zip is already compressed. Identity keeps Content-Length, Range offsets and the
+            // bytes written all describing the same representation on either transport.
+            httpConn.setRequestProperty("Accept-Encoding", "identity");
 
             // Zip can stall longer than a JSON API call; keep a floor so
             // responseTimeout cannot shrink large-bundle downloads.
