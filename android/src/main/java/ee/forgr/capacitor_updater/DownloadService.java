@@ -147,6 +147,8 @@ public class DownloadService extends Worker {
                 Request requestWithUserAgent = originalRequest.newBuilder().header("User-Agent", userAgent).build();
                 return chain.proceed(requestWithUserAgent);
             })
+            // Last, so the User-Agent above is already on the request.
+            .addInterceptor(new Http3.EngineInterceptor(Http3::engineOpener))
             .build();
     }
 
@@ -399,6 +401,8 @@ public class DownloadService extends Worker {
     @NonNull
     @Override
     public Result doWork() {
+        // Every download runs here, on a worker thread, possibly in a fresh process.
+        Http3.init(getApplicationContext(), logger);
         try {
             String url = getInputData().getString(URL);
             String id = getInputData().getString(ID);
@@ -700,7 +704,7 @@ public class DownloadService extends Worker {
 
         try {
             URL u = new URL(url);
-            httpConn = (HttpURLConnection) u.openConnection();
+            httpConn = (HttpURLConnection) Http3.openConnection(u);
 
             // Zip can stall longer than a JSON API call; keep a floor so
             // responseTimeout cannot shrink large-bundle downloads.
@@ -743,7 +747,9 @@ public class DownloadService extends Worker {
 
             if (responseCode == HttpURLConnection.HTTP_OK || responseCode == HttpURLConnection.HTTP_PARTIAL) {
                 ZipWritePlan writePlan = planZipResumeWrite(responseCode, downloadedBytes, httpConn.getHeaderField("Content-Range"));
-                long responseBodyLength = httpConn.getContentLength();
+                // HttpEngine always negotiates and decodes Content-Encoding, keeping the encoded
+                // Content-Length, so that length doesn't describe the bytes written.
+                long responseBodyLength = httpConn.getHeaderField("Content-Encoding") != null ? -1 : httpConn.getContentLength();
                 long contentLength = shouldAppendHttpBody(writePlan.statusCode, writePlan.writeOffset)
                     ? (responseBodyLength >= 0 ? responseBodyLength + writePlan.writeOffset : -1)
                     : responseBodyLength;
