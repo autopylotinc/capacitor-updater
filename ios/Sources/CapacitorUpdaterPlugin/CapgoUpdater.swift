@@ -188,7 +188,16 @@ import UIKit
         configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
         configuration.urlCache = nil
         configuration.httpMaximumConnectionsPerHost = Self.manifestMaxConcurrentFiles
-        let session = Session(configuration: configuration)
+        // Try HTTP/3 on the first request instead of waiting for Alt-Svc, which an ephemeral
+        // session forgets every launch. URLSession falls back to HTTP/2 when QUIC fails.
+        let preferHTTP3 = Adapter { request, _, completion in
+            var request = request
+            if #available(iOS 14.5, *) {
+                request.assumesHTTP3Capable = true
+            }
+            completion(.success(request))
+        }
+        let session = Session(configuration: configuration, interceptor: preferHTTP3)
         _alamofireSession = session
         return session
     }

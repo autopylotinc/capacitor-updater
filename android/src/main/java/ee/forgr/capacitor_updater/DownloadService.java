@@ -147,6 +147,8 @@ public class DownloadService extends Worker {
                 Request requestWithUserAgent = originalRequest.newBuilder().header("User-Agent", userAgent).build();
                 return chain.proceed(requestWithUserAgent);
             })
+            // Last, so the User-Agent above is already on the request.
+            .addInterceptor(new Http3.EngineInterceptor(Http3::engineOpener))
             .build();
     }
 
@@ -399,6 +401,8 @@ public class DownloadService extends Worker {
     @NonNull
     @Override
     public Result doWork() {
+        // WorkManager can run this in a fresh process that never loaded the plugin.
+        Http3.init(getApplicationContext(), logger);
         try {
             String url = getInputData().getString(URL);
             String id = getInputData().getString(ID);
@@ -700,7 +704,7 @@ public class DownloadService extends Worker {
 
         try {
             URL u = new URL(url);
-            httpConn = (HttpURLConnection) u.openConnection();
+            httpConn = (HttpURLConnection) Http3.openConnection(u);
 
             // Zip can stall longer than a JSON API call; keep a floor so
             // responseTimeout cannot shrink large-bundle downloads.
